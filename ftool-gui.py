@@ -9,6 +9,7 @@ import sys
 
 import wx
 import wx.xrc
+import wx.stc as stc
 
 import gettext
 _ = gettext.gettext
@@ -90,7 +91,27 @@ class MainFrame ( wx.Frame ):
         self.m_panel1 = wx.Panel( self.m_notebook1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
         bSizer9 = wx.BoxSizer( wx.VERTICAL )
 
-        self.m_textCtrl_code = wx.TextCtrl( self.m_panel1, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_MULTILINE )
+        # self.m_textCtrl_code = wx.TextCtrl( self.m_panel1, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_MULTILINE )
+        self.m_textCtrl_code = stc.StyledTextCtrl(self.m_panel1)
+        # 设置默认字体和大小
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_STYLE_DEFAULT, "face:Courier New,size:12")
+        self.m_textCtrl_code.StyleClearAll()
+
+        # 设置 JavaScript 语法高亮
+        self.m_textCtrl_code.SetLexer(stc.STC_LEX_CPP)  # 使用 C++ 词法解析器处理 JavaScript
+        self.m_textCtrl_code.SetKeyWords(0, "var let const function return if else for while switch case break continue try catch finally throw new in this typeof instanceof delete void")
+        
+        # 设置各种语法元素的颜色
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_DEFAULT, "fore:#000000")   # 默认
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_COMMENTLINE, "fore:#007F00,italic")  # 单行注释
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_COMMENT, "fore:#007F00,italic")  # 多行注释
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_NUMBER, "fore:#007F7F")    # 数字
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_STRING, "fore:#7F007F")    # 字符串
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_CHARACTER, "fore:#7F007F") # 字符
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_WORD, "fore:#00007F,bold") # 关键字
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_OPERATOR, "fore:#000000,bold") # 操作符
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_IDENTIFIER, "fore:#000000")   # 标识符
+        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_REGEX, "fore:#7F007F")    # 正则表达式
         bSizer9.Add( self.m_textCtrl_code, 1, wx.ALL|wx.EXPAND, 5 )
 
 
@@ -101,7 +122,27 @@ class MainFrame ( wx.Frame ):
         self.m_panel2 = wx.Panel( self.m_notebook1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
         bSizer10 = wx.BoxSizer( wx.VERTICAL )
 
-        self.m_textCtrl_default = wx.TextCtrl( self.m_panel2, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_MULTILINE )
+        # self.m_textCtrl_default = wx.TextCtrl( self.m_panel2, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_MULTILINE )
+        self.m_textCtrl_default = stc.StyledTextCtrl(self.m_panel2)
+        # 设置默认字体和大小
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_STYLE_DEFAULT, "face:Courier New,size:12")
+        self.m_textCtrl_default.StyleClearAll()
+
+        # 设置 JavaScript 语法高亮
+        self.m_textCtrl_default.SetLexer(stc.STC_LEX_CPP)  # 使用 C++ 词法解析器处理 JavaScript
+        self.m_textCtrl_default.SetKeyWords(0, "var let const function return if else for while switch case break continue try catch finally throw new in this typeof instanceof delete void")
+        
+        # 设置各种语法元素的颜色
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_DEFAULT, "fore:#000000")   # 默认
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_COMMENTLINE, "fore:#007F00,italic")  # 单行注释
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_COMMENT, "fore:#007F00,italic")  # 多行注释
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_NUMBER, "fore:#007F7F")    # 数字
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_STRING, "fore:#7F007F")    # 字符串
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_CHARACTER, "fore:#7F007F") # 字符
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_WORD, "fore:#00007F,bold") # 关键字
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_OPERATOR, "fore:#000000,bold") # 操作符
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_IDENTIFIER, "fore:#000000")   # 标识符
+        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_REGEX, "fore:#7F007F")    # 正则表达式
         bSizer10.Add( self.m_textCtrl_default, 1, wx.ALL|wx.EXPAND, 5 )
 
 
