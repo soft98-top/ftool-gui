@@ -278,7 +278,7 @@ class Util():
             message = message + "\n"
         if source.find("|") != -1 and Util.CURRENT != source and Util.CURRENT != "":
             return
-        wx.CallAfter(Util.LOG_WINDOW.AppendText, f"[{source}]: {message}")
+        wx.CallAfter(Util.LOG_WINDOW.AppendText, f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n[{source}]: {message}")
     
     def new_frida(targets:list):
         with Util.LOCK:
@@ -407,6 +407,7 @@ class FridaClient:
                 if Util.FLAGS["force_attach"]:
                     time.sleep(0.2)
                     Util.new_frida(target)
+            return
 
         default_code = Util.get_default_code()
         try:
