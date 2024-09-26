@@ -2,8 +2,8 @@
  * all-in-one 包含所有常用函数
  * 作者：Soft98
  * 日期：2023-04-03
- * Update： 2024-08-29
- * 版本：1.0.9
+ * Update： 2024-09-26
+ * 版本：1.0.10
  */
 
 
@@ -123,7 +123,15 @@ var getMethodInfo = function (className, methodName) {
                     send("Argument" + String(index) + ": " + obj.toString());
                 }
             }
-            send("BackTrace:" + Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join(" | "));
+            // send("BackTrace:" + Thread.backtrace(this.context, Backtracer.ACCURATE).map(DebugSymbol.fromAddress).join(" | "));
+            const moduleBase = Module.findBaseAddress('Typora'); 
+            send(Thread.backtrace(this.context, Backtracer.FUZZY)
+            .map(addr => {
+                var offset = addr.sub(moduleBase);
+                var symbol = DebugSymbol.fromAddress(addr);
+                return symbol ? `${offset.toString(16)} - ${symbol}` : `${offset.toString(16)} - <未知>`;
+            })
+            .join('\n'));
         },
         onLeave(retval) {
             send(`====${className} ${methodName} onLeave=====`);
@@ -136,6 +144,32 @@ var getMethodInfo = function (className, methodName) {
         }
     });
 }
+
+/**
+ * 获取方法的调用堆栈
+ * @param {string} className - 类名
+ * @param {string} methodName - 方法名
+ * @param {string} moduleName - 模块名，计算偏移使用
+ */
+var getMethodTrace = function (className, methodName, moduleName) {
+    let targetClass = ObjC.classes[className];
+    Interceptor.attach(targetClass[methodName].implementation, {
+        onEnter(args) {
+            send(`====${className} ${methodName} onEnter=====`);
+            const moduleBase = Module.findBaseAddress(moduleName); 
+            send(Thread.backtrace(this.context, Backtracer.FUZZY)
+            .map(addr => {
+                var offset = addr.sub(moduleBase);
+                var symbol = DebugSymbol.fromAddress(addr);
+                return symbol ? `${offset.toString(16)} - ${symbol}` : `${offset.toString(16)} - <未知>`;
+            })
+            .join('\n'));
+        },
+        onLeave(retval) {
+        }
+    });
+}
+
 /**
  * 调用方法
  * @param {string} className - 类名
@@ -373,6 +407,24 @@ var hookMethodByOffset = function (moduleName, offset, cmds) {
         }
     });
 }
+
+/**
+ * 修改内存值U8
+ * @param {string} moduleName - 模块名
+ * @param {number} offset - 偏移量
+ * @param {number} value - 偏移量
+ */
+var modifyByOffsetU8 = function (moduleName, offset, value) {
+    let address = getFuncAddr(moduleName, offset)
+    try {
+        send('origin: ' + Memory.readU8(address)); 
+        Memory.writeU8(address, value);
+        console.log('modify: ' + Memory.readU8(address)); // 验证修改
+    } catch (e) {
+        send('读取或写入失败: ' + e);
+    }
+}
+
 /**
  * 获取类的所有方法的信息
  * @param {string} className - 类名
