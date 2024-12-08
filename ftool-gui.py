@@ -6,10 +6,11 @@ import threading
 import re
 import os
 import sys
+import requests
 
 import wx
 import wx.xrc
-import wx.stc as stc
+import wx.stc
 
 import gettext
 _ = gettext.gettext
@@ -21,7 +22,7 @@ _ = gettext.gettext
 class MainFrame ( wx.Frame ):
 
     def __init__( self, parent ):
-        wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = _(u"ftool-gui"), pos = wx.DefaultPosition, size = wx.Size( 575,438 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
+        wx.Frame.__init__ ( self, parent, id = wx.ID_ANY, title = _(u"ftool-gui"), pos = wx.DefaultPosition, size = wx.Size( 955,705 ), style = wx.DEFAULT_FRAME_STYLE|wx.TAB_TRAVERSAL )
 
         self.SetSizeHints( wx.DefaultSize, wx.DefaultSize )
 
@@ -54,11 +55,27 @@ class MainFrame ( wx.Frame ):
 
         self.m_button_detach = wx.Button( self, wx.ID_ANY, _(u"Detach"), wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer6.Add( self.m_button_detach, 0, wx.ALL, 5 )
+
         self.m_button_clear = wx.Button( self, wx.ID_ANY, _(u"Clear"), wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer6.Add( self.m_button_clear, 0, wx.ALL, 5 )
 
 
         bSizer4.Add( bSizer6, 0, wx.EXPAND, 5 )
+
+        bSizer12 = wx.BoxSizer( wx.HORIZONTAL )
+
+        self.m_checkBox_autoswitch = wx.CheckBox( self, wx.ID_ANY, _(u"Auto Switch"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_checkBox_autoswitch.SetValue(True)
+        bSizer12.Add( self.m_checkBox_autoswitch, 0, wx.ALL, 5 )
+
+        self.m_checkBox_showall = wx.CheckBox( self, wx.ID_ANY, _(u"Show All"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        bSizer12.Add( self.m_checkBox_showall, 0, wx.ALL, 5 )
+
+        self.m_checkBox_force = wx.CheckBox( self, wx.ID_ANY, _(u"Force Attach"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        bSizer12.Add( self.m_checkBox_force, 0, wx.ALL, 5 )
+
+
+        bSizer4.Add( bSizer12, 0, wx.EXPAND, 5 )
 
         bSizer7 = wx.BoxSizer( wx.VERTICAL )
 
@@ -81,75 +98,108 @@ class MainFrame ( wx.Frame ):
         self.m_button_load = wx.Button( self, wx.ID_ANY, _(u"Load"), wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer8.Add( self.m_button_load, 0, wx.ALL, 5 )
 
+        self.m_button_open = wx.Button( self, wx.ID_ANY, _(u"Open"), wx.DefaultPosition, wx.DefaultSize, 0 )
+        bSizer8.Add( self.m_button_open, 0, wx.ALL, 5 )
+
         self.m_button_exec = wx.Button( self, wx.ID_ANY, _(u"Exec"), wx.DefaultPosition, wx.DefaultSize, 0 )
         bSizer8.Add( self.m_button_exec, 0, wx.ALL, 5 )
 
 
         bSizer5.Add( bSizer8, 0, wx.EXPAND, 5 )
 
-        self.m_notebook1 = wx.Notebook( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0 )
+        self.m_notebook1 = wx.Notebook( self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0, u"Default" )
         self.m_panel1 = wx.Panel( self.m_notebook1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
         bSizer9 = wx.BoxSizer( wx.VERTICAL )
 
-        # self.m_textCtrl_code = wx.TextCtrl( self.m_panel1, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_MULTILINE )
-        self.m_textCtrl_code = stc.StyledTextCtrl(self.m_panel1)
-        # 设置默认字体和大小
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_STYLE_DEFAULT, "face:Courier New,size:12")
-        self.m_textCtrl_code.StyleClearAll()
-
-        # 设置 JavaScript 语法高亮
-        self.m_textCtrl_code.SetLexer(stc.STC_LEX_CPP)  # 使用 C++ 词法解析器处理 JavaScript
-        self.m_textCtrl_code.SetKeyWords(0, "var let const function return if else for while switch case break continue try catch finally throw new in this typeof instanceof delete void")
-        
-        # 设置各种语法元素的颜色
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_DEFAULT, "fore:#000000")   # 默认
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_COMMENTLINE, "fore:#007F00,italic")  # 单行注释
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_COMMENT, "fore:#007F00,italic")  # 多行注释
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_NUMBER, "fore:#007F7F")    # 数字
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_STRING, "fore:#7F007F")    # 字符串
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_CHARACTER, "fore:#7F007F") # 字符
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_WORD, "fore:#00007F,bold") # 关键字
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_OPERATOR, "fore:#000000,bold") # 操作符
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_IDENTIFIER, "fore:#000000")   # 标识符
-        self.m_textCtrl_code.StyleSetSpec(stc.STC_C_REGEX, "fore:#7F007F")    # 正则表达式
-        bSizer9.Add( self.m_textCtrl_code, 1, wx.ALL|wx.EXPAND, 5 )
+        self.m_scintilla_code = wx.stc.StyledTextCtrl( self.m_panel1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0)
+        self.m_scintilla_code.SetUseTabs ( True )
+        self.m_scintilla_code.SetTabWidth ( 4 )
+        self.m_scintilla_code.SetIndent ( 4 )
+        self.m_scintilla_code.SetTabIndents( True )
+        self.m_scintilla_code.SetBackSpaceUnIndents( True )
+        self.m_scintilla_code.SetViewEOL( False )
+        self.m_scintilla_code.SetViewWhiteSpace( False )
+        self.m_scintilla_code.SetMarginWidth( 2, 0 )
+        self.m_scintilla_code.SetIndentationGuides( True )
+        self.m_scintilla_code.SetReadOnly( False )
+        self.m_scintilla_code.SetMarginType ( 1, wx.stc.STC_MARGIN_SYMBOL )
+        self.m_scintilla_code.SetMarginMask ( 1, wx.stc.STC_MASK_FOLDERS )
+        self.m_scintilla_code.SetMarginWidth ( 1, 16)
+        self.m_scintilla_code.SetMarginSensitive( 1, True )
+        self.m_scintilla_code.SetProperty ( "fold", "1" )
+        self.m_scintilla_code.SetFoldFlags ( wx.stc.STC_FOLDFLAG_LINEBEFORE_CONTRACTED | wx.stc.STC_FOLDFLAG_LINEAFTER_CONTRACTED )
+        self.m_scintilla_code.SetMarginType( 0, wx.stc.STC_MARGIN_NUMBER )
+        self.m_scintilla_code.SetMarginWidth( 0, self.m_scintilla_code.TextWidth( wx.stc.STC_STYLE_LINENUMBER, "_99999" ) )
+        self.m_scintilla_code.MarkerDefine( wx.stc.STC_MARKNUM_FOLDER, wx.stc.STC_MARK_BOXPLUS )
+        self.m_scintilla_code.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDER, wx.BLACK)
+        self.m_scintilla_code.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDER, wx.WHITE)
+        self.m_scintilla_code.MarkerDefine( wx.stc.STC_MARKNUM_FOLDEROPEN, wx.stc.STC_MARK_BOXMINUS )
+        self.m_scintilla_code.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDEROPEN, wx.BLACK )
+        self.m_scintilla_code.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDEROPEN, wx.WHITE )
+        self.m_scintilla_code.MarkerDefine( wx.stc.STC_MARKNUM_FOLDERSUB, wx.stc.STC_MARK_EMPTY )
+        self.m_scintilla_code.MarkerDefine( wx.stc.STC_MARKNUM_FOLDEREND, wx.stc.STC_MARK_BOXPLUS )
+        self.m_scintilla_code.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDEREND, wx.BLACK )
+        self.m_scintilla_code.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDEREND, wx.WHITE )
+        self.m_scintilla_code.MarkerDefine( wx.stc.STC_MARKNUM_FOLDEROPENMID, wx.stc.STC_MARK_BOXMINUS )
+        self.m_scintilla_code.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDEROPENMID, wx.BLACK)
+        self.m_scintilla_code.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDEROPENMID, wx.WHITE)
+        self.m_scintilla_code.MarkerDefine( wx.stc.STC_MARKNUM_FOLDERMIDTAIL, wx.stc.STC_MARK_EMPTY )
+        self.m_scintilla_code.MarkerDefine( wx.stc.STC_MARKNUM_FOLDERTAIL, wx.stc.STC_MARK_EMPTY )
+        self.m_scintilla_code.SetSelBackground( True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHT ) )
+        self.m_scintilla_code.SetSelForeground( True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHTTEXT ) )
+        bSizer9.Add( self.m_scintilla_code, 1, wx.EXPAND |wx.ALL, 5 )
 
 
         self.m_panel1.SetSizer( bSizer9 )
         self.m_panel1.Layout()
         bSizer9.Fit( self.m_panel1 )
-        self.m_notebook1.AddPage( self.m_panel1, _(u"Custom"), False )
+        self.m_notebook1.AddPage( self.m_panel1, _(u"Custom"), True )
         self.m_panel2 = wx.Panel( self.m_notebook1, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TAB_TRAVERSAL )
         bSizer10 = wx.BoxSizer( wx.VERTICAL )
 
-        # self.m_textCtrl_default = wx.TextCtrl( self.m_panel2, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, wx.TE_MULTILINE )
-        self.m_textCtrl_default = stc.StyledTextCtrl(self.m_panel2)
-        # 设置默认字体和大小
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_STYLE_DEFAULT, "face:Courier New,size:12")
-        self.m_textCtrl_default.StyleClearAll()
-
-        # 设置 JavaScript 语法高亮
-        self.m_textCtrl_default.SetLexer(stc.STC_LEX_CPP)  # 使用 C++ 词法解析器处理 JavaScript
-        self.m_textCtrl_default.SetKeyWords(0, "var let const function return if else for while switch case break continue try catch finally throw new in this typeof instanceof delete void")
-        
-        # 设置各种语法元素的颜色
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_DEFAULT, "fore:#000000")   # 默认
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_COMMENTLINE, "fore:#007F00,italic")  # 单行注释
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_COMMENT, "fore:#007F00,italic")  # 多行注释
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_NUMBER, "fore:#007F7F")    # 数字
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_STRING, "fore:#7F007F")    # 字符串
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_CHARACTER, "fore:#7F007F") # 字符
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_WORD, "fore:#00007F,bold") # 关键字
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_OPERATOR, "fore:#000000,bold") # 操作符
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_IDENTIFIER, "fore:#000000")   # 标识符
-        self.m_textCtrl_default.StyleSetSpec(stc.STC_C_REGEX, "fore:#7F007F")    # 正则表达式
-        bSizer10.Add( self.m_textCtrl_default, 1, wx.ALL|wx.EXPAND, 5 )
+        self.m_scintilla_default = wx.stc.StyledTextCtrl( self.m_panel2, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0)
+        self.m_scintilla_default.SetUseTabs ( True )
+        self.m_scintilla_default.SetTabWidth ( 4 )
+        self.m_scintilla_default.SetIndent ( 4 )
+        self.m_scintilla_default.SetTabIndents( True )
+        self.m_scintilla_default.SetBackSpaceUnIndents( True )
+        self.m_scintilla_default.SetViewEOL( False )
+        self.m_scintilla_default.SetViewWhiteSpace( False )
+        self.m_scintilla_default.SetMarginWidth( 2, 0 )
+        self.m_scintilla_default.SetIndentationGuides( True )
+        self.m_scintilla_default.SetReadOnly( False )
+        self.m_scintilla_default.SetMarginType ( 1, wx.stc.STC_MARGIN_SYMBOL )
+        self.m_scintilla_default.SetMarginMask ( 1, wx.stc.STC_MASK_FOLDERS )
+        self.m_scintilla_default.SetMarginWidth ( 1, 16)
+        self.m_scintilla_default.SetMarginSensitive( 1, True )
+        self.m_scintilla_default.SetProperty ( "fold", "1" )
+        self.m_scintilla_default.SetFoldFlags ( wx.stc.STC_FOLDFLAG_LINEBEFORE_CONTRACTED | wx.stc.STC_FOLDFLAG_LINEAFTER_CONTRACTED )
+        self.m_scintilla_default.SetMarginType( 0, wx.stc.STC_MARGIN_NUMBER )
+        self.m_scintilla_default.SetMarginWidth( 0, self.m_scintilla_default.TextWidth( wx.stc.STC_STYLE_LINENUMBER, "_99999" ) )
+        self.m_scintilla_default.MarkerDefine( wx.stc.STC_MARKNUM_FOLDER, wx.stc.STC_MARK_BOXPLUS )
+        self.m_scintilla_default.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDER, wx.BLACK)
+        self.m_scintilla_default.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDER, wx.WHITE)
+        self.m_scintilla_default.MarkerDefine( wx.stc.STC_MARKNUM_FOLDEROPEN, wx.stc.STC_MARK_BOXMINUS )
+        self.m_scintilla_default.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDEROPEN, wx.BLACK )
+        self.m_scintilla_default.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDEROPEN, wx.WHITE )
+        self.m_scintilla_default.MarkerDefine( wx.stc.STC_MARKNUM_FOLDERSUB, wx.stc.STC_MARK_EMPTY )
+        self.m_scintilla_default.MarkerDefine( wx.stc.STC_MARKNUM_FOLDEREND, wx.stc.STC_MARK_BOXPLUS )
+        self.m_scintilla_default.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDEREND, wx.BLACK )
+        self.m_scintilla_default.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDEREND, wx.WHITE )
+        self.m_scintilla_default.MarkerDefine( wx.stc.STC_MARKNUM_FOLDEROPENMID, wx.stc.STC_MARK_BOXMINUS )
+        self.m_scintilla_default.MarkerSetBackground( wx.stc.STC_MARKNUM_FOLDEROPENMID, wx.BLACK)
+        self.m_scintilla_default.MarkerSetForeground( wx.stc.STC_MARKNUM_FOLDEROPENMID, wx.WHITE)
+        self.m_scintilla_default.MarkerDefine( wx.stc.STC_MARKNUM_FOLDERMIDTAIL, wx.stc.STC_MARK_EMPTY )
+        self.m_scintilla_default.MarkerDefine( wx.stc.STC_MARKNUM_FOLDERTAIL, wx.stc.STC_MARK_EMPTY )
+        self.m_scintilla_default.SetSelBackground( True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHT ) )
+        self.m_scintilla_default.SetSelForeground( True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHTTEXT ) )
+        bSizer10.Add( self.m_scintilla_default, 1, wx.EXPAND |wx.ALL, 5 )
 
 
         self.m_panel2.SetSizer( bSizer10 )
         self.m_panel2.Layout()
         bSizer10.Fit( self.m_panel2 )
-        self.m_notebook1.AddPage( self.m_panel2, _(u"Default"), True )
+        self.m_notebook1.AddPage( self.m_panel2, _(u"Default"), False )
 
         bSizer5.Add( self.m_notebook1, 1, wx.EXPAND |wx.ALL, 5 )
 
@@ -182,9 +232,11 @@ class MainFrame ( wx.Frame ):
     
     def Init(self):
         Util.LOG_WINDOW = self.m_textCtrl_log
-        Util.CODE_WINDOW = self.m_textCtrl_code
-        Util.DEFAULT_WINDOW = self.m_textCtrl_default
+        Util.CODE_WINDOW = self.m_scintilla_code
+        Util.DEFAULT_WINDOW = self.m_scintilla_default
         Util.ATTACHED_CHOICES = self.m_choice_attached
+        self.Handle_code_style(Util.CODE_WINDOW)
+        self.Handle_code_style(Util.DEFAULT_WINDOW)
         # Connect Events
         self.Bind(wx.EVT_MENU, self.on_close, self.m_menuItem_close)
         self.m_button_search.Bind(wx.EVT_BUTTON, self.on_search)
@@ -192,9 +244,35 @@ class MainFrame ( wx.Frame ):
         self.m_button_detach.Bind(wx.EVT_BUTTON, self.on_detach)
         self.m_button_clear.Bind(wx.EVT_BUTTON, self.on_clear)
         self.m_button_load.Bind(wx.EVT_BUTTON, self.on_load)
+        self.m_button_open.Bind(wx.EVT_BUTTON, self.on_open)
         self.m_button_exec.Bind(wx.EVT_BUTTON, self.on_exec)
         self.m_choice_attached.Bind(wx.EVT_CHOICE, self.on_choice)
+        self.m_checkBox_autoswitch.Bind(wx.EVT_CHECKBOX, self.on_checkbox)
+        self.m_checkBox_force.Bind(wx.EVT_CHECKBOX, self.on_checkbox)
+        self.m_checkBox_showall.Bind(wx.EVT_CHECKBOX, self.on_checkbox)
+        self.on_checkbox(None)
         Util.load_default_code()
+    
+    def Handle_code_style(self, component:wx.stc.StyledTextCtrl):
+        # 设置默认字体和大小
+        component.StyleSetSpec(wx.stc.STC_STYLE_DEFAULT, "face:Courier New,size:12")
+        component.StyleClearAll()
+
+        # 设置 JavaScript 语法高亮
+        component.SetLexer(wx.stc.STC_LEX_CPP)  # 使用 C++ 词法解析器处理 JavaScript
+        component.SetKeyWords(0, "var let const function return if else for while switch case break continue try catch finally throw new in this typeof instanceof delete void")
+        
+        # 设置各种语法元素的颜色
+        component.StyleSetSpec(wx.stc.STC_C_DEFAULT, "fore:#000000")   # 默认
+        component.StyleSetSpec(wx.stc.STC_C_COMMENTLINE, "fore:#007F00,italic")  # 单行注释
+        component.StyleSetSpec(wx.stc.STC_C_COMMENT, "fore:#007F00,italic")  # 多行注释
+        component.StyleSetSpec(wx.stc.STC_C_NUMBER, "fore:#007F7F")    # 数字
+        component.StyleSetSpec(wx.stc.STC_C_STRING, "fore:#7F007F")    # 字符串
+        component.StyleSetSpec(wx.stc.STC_C_CHARACTER, "fore:#7F007F") # 字符
+        component.StyleSetSpec(wx.stc.STC_C_WORD, "fore:#00007F,bold") # 关键字
+        component.StyleSetSpec(wx.stc.STC_C_OPERATOR, "fore:#000000,bold") # 操作符
+        component.StyleSetSpec(wx.stc.STC_C_IDENTIFIER, "fore:#000000")   # 标识符
+        component.StyleSetSpec(wx.stc.STC_C_REGEX, "fore:#7F007F")    # 正则表达式
     
     # Event Handlers
     def on_close(self, event):
@@ -215,7 +293,8 @@ class MainFrame ( wx.Frame ):
         for proc in psutil.process_iter(['pid', 'name']):
             try:
                 # 如果进程名称匹配，则返回 PID
-                if proc.info['name'].find(search_text) != -1:
+                "".find
+                if proc.info['name'].lower().find(search_text.lower()) != -1:
                     is_finded = True
                     Util.log("search",f"PID: {proc.info['pid']} Name: {proc.info['name']}\n")
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
@@ -230,6 +309,7 @@ class MainFrame ( wx.Frame ):
 
     def on_detach(self, event):
         Util.exec_cmd("detach")
+        Util.refresh_choices()
         
     def on_clear(self, event):
         self.m_textCtrl_log.Clear()
@@ -243,6 +323,29 @@ class MainFrame ( wx.Frame ):
                 # 获取所选文件的路径
                 file_path = fileDialog.GetPath()
                 self.m_textCtrl_jsfile.SetValue(file_path)
+        if file_path.startswith("http://") or file_path.startswith("https://"):
+            try:
+                res = requests.get(file_path,headers={
+                    "User-Agent": "ftool-gui"
+                }, timeout=5)
+                if res.status_code == 200:
+                    Util.set_custom_code(res.text)
+            except Exception as ex:
+                Util.log("load code", "Error: " + str(ex))
+        elif os.path.exists(file_path) and os.path.isfile(file_path):
+            code = open(file_path,'r',encoding='utf8').read()
+            Util.set_custom_code(code)
+        else:
+            Util.log("load code", "Path is a dir or not found!")
+    
+    def on_open(self, event):
+        file_path = ""
+        with wx.FileDialog(self, "选择一个文件", wildcard="所有文件 (*.*)|*.*", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+            # 获取所选文件的路径
+            file_path = fileDialog.GetPath()
+            self.m_textCtrl_jsfile.SetValue(file_path)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             code = open(file_path,'r',encoding='utf8').read()
             Util.set_custom_code(code)
@@ -256,6 +359,11 @@ class MainFrame ( wx.Frame ):
         selected = self.m_choice_attached.GetString(self.m_choice_attached.GetSelection())
         Util.set_current(selected)
         print(f'You selected: {selected}')
+    
+    def on_checkbox(self, event):
+        Util.FLAGS["force_attach"] = self.m_checkBox_force.IsChecked()
+        Util.FLAGS["auto_switch"] = self.m_checkBox_autoswitch.IsChecked()
+        Util.FLAGS["show_all"] = self.m_checkBox_showall.IsChecked()
         
 class Util():
     LOG_WINDOW = None
@@ -263,7 +371,9 @@ class Util():
     DEFAULT_WINDOW = None
     DEFAULT_CODE_PATH = "code/all-in-one.js"
     FLAGS = {
-        "force_attach": False
+        "force_attach": False,
+        "auto_switch": True,
+        "show_all": False
     }
     ATTACHED_CHOICES = None
     CLIENTS = {}
@@ -276,7 +386,7 @@ class Util():
             return
         if not message.endswith("\n"):
             message = message + "\n"
-        if source.find("|") != -1 and Util.CURRENT != source and Util.CURRENT != "":
+        if source.find("|") != -1 and Util.CURRENT != source and Util.CURRENT != "" and Util.FLAGS["show_all"] != True:
             return
         wx.CallAfter(Util.LOG_WINDOW.AppendText, f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n[{source}]: {message}")
     
@@ -311,7 +421,7 @@ class Util():
 
     def add_client(id):
         Util.CLIENTS[id] = ""
-        if Util.CURRENT == "":
+        if Util.CURRENT == "" or Util.FLAGS["auto_switch"]:
             Util.CURRENT = id
         Util.refresh_choices()
     
@@ -347,7 +457,7 @@ class Util():
         if Util.CURRENT != "" and Util.CURRENT not in client_ids:
             Util.CURRENT = ""
         wx.CallAfter(Util.ATTACHED_CHOICES.Set,client_ids)
-        if len(client_ids) > 0:
+        if Util.CURRENT == "" and len(client_ids) > 0:
             Util.CURRENT = client_ids[0]
             print(Util.CURRENT,client_ids)
         if Util.CURRENT != "":
@@ -406,7 +516,7 @@ class FridaClient:
             if error.startswith("unable to find process"):
                 if Util.FLAGS["force_attach"]:
                     time.sleep(0.2)
-                    Util.new_frida(target)
+                    Util.new_frida([target])
             return
 
         default_code = Util.get_default_code()
