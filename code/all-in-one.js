@@ -278,6 +278,34 @@ var getMethodInfoByOffset = function (moduleName, offset) {
         }
     });
 }
+
+/**
+ * 获取方法的调用堆栈
+ * @param {string} moduleName - 模块名
+ * @param {number} offset - 偏移量
+ */
+var getMethodTraceByOffset = function (moduleName, offset) {
+    // 获取目标函数的绝对地址
+    var func_addr = obj_method.getFuncAddr(moduleName, offset);
+    Interceptor.attach(ptr(func_addr), {
+        // 接受可变参数
+        onEnter: function (args) {
+            send("====onEnter=====");
+            let moduleBase = Module.findBaseAddress(moduleName); 
+            send(Thread.backtrace(this.context, Backtracer.FUZZY)
+            .map(addr => {
+                var offset = addr.sub(moduleBase);
+                var symbol = DebugSymbol.fromAddress(addr);
+                return symbol ? `${offset.toString(16)} - ${symbol}` : `${offset.toString(16)} - <未知>`;
+            })
+            .join('\n'));
+        },
+        onLeave: function (retval) {
+            send("====onLeave=====");
+        }
+    });
+}
+
 /**
  * 根据地址获取方法信息
  * @param {string} moduleName - 模块名
