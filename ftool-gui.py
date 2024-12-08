@@ -229,14 +229,14 @@ class MainFrame ( wx.Frame ):
 
     def __del__( self ):
         pass
-    
+# UI界面初始化
     def Init(self):
         Util.LOG_WINDOW = self.m_textCtrl_log
         Util.CODE_WINDOW = self.m_scintilla_code
         Util.DEFAULT_WINDOW = self.m_scintilla_default
         Util.ATTACHED_CHOICES = self.m_choice_attached
-        self.Handle_code_style(Util.CODE_WINDOW)
-        self.Handle_code_style(Util.DEFAULT_WINDOW)
+        self.handle_code_style(Util.CODE_WINDOW)
+        self.handle_code_style(Util.DEFAULT_WINDOW)
         # Connect Events
         self.Bind(wx.EVT_MENU, self.on_close, self.m_menuItem_close)
         self.m_button_search.Bind(wx.EVT_BUTTON, self.on_search)
@@ -252,8 +252,8 @@ class MainFrame ( wx.Frame ):
         self.m_checkBox_showall.Bind(wx.EVT_CHECKBOX, self.on_checkbox)
         self.on_checkbox(None)
         Util.load_default_code()
-    
-    def Handle_code_style(self, component:wx.stc.StyledTextCtrl):
+# 对代码窗口进行格式处理
+    def handle_code_style(self, component:wx.stc.StyledTextCtrl):
         # 设置默认字体和大小
         component.StyleSetSpec(wx.stc.STC_STYLE_DEFAULT, "face:Courier New,size:12")
         component.StyleClearAll()
@@ -275,6 +275,7 @@ class MainFrame ( wx.Frame ):
         component.StyleSetSpec(wx.stc.STC_C_REGEX, "fore:#7F007F")    # 正则表达式
     
     # Event Handlers
+    # 退出程序事件
     def on_close(self, event):
         dlg = wx.MessageDialog(self, "Are you sure you want to exit?", "Confirm Exit", wx.YES_NO | wx.ICON_QUESTION)
         result = dlg.ShowModal()
@@ -285,7 +286,7 @@ class MainFrame ( wx.Frame ):
                     thread.join(timeout=2)  # 等待线程终止，如果超过5秒则强制关闭
             self.Destroy()
             os._exit(0)
-    
+    # 搜索按钮事件
     def on_search(self, event):
         search_text = self.m_textCtrl_search.GetValue()
         Util.log("search",f"Searching for: {search_text}\n")
@@ -301,19 +302,21 @@ class MainFrame ( wx.Frame ):
                 Util.log("search",f"Searching rrror for: {search_text}\n")
         if not is_finded:
             Util.log("search",f"Searching not found!\n")
-
+    # 附加进程事件
     def on_attach(self, event):
         target = self.m_textCtrl_search.GetValue()
+        # 支持多程序同时附加
         targets = target.split(",")
         Util.new_frida(targets)
-
+    # 解除进程附加状态
     def on_detach(self, event):
         Util.exec_cmd("detach")
+        # 刷新附加列表
         Util.refresh_choices()
-        
+    # 日志窗口清空
     def on_clear(self, event):
         self.m_textCtrl_log.Clear()
-
+    # load按钮事件，支持url/打开文件窗口
     def on_load(self, event):
         file_path = self.m_textCtrl_jsfile.GetValue()
         if file_path.replace(" ","") == "":
@@ -337,7 +340,7 @@ class MainFrame ( wx.Frame ):
             Util.set_custom_code(code)
         else:
             Util.log("load code", "Path is a dir or not found!")
-    
+    #  open按钮事件，打开文件窗口选择文件
     def on_open(self, event):
         file_path = ""
         with wx.FileDialog(self, "选择一个文件", wildcard="所有文件 (*.*)|*.*", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
@@ -351,20 +354,20 @@ class MainFrame ( wx.Frame ):
             Util.set_custom_code(code)
         else:
             Util.log("load code", "Path is a dir or not found!")
-
+    #  exec按钮事件，对附加进程执行命令
     def on_exec(self, event):
         Util.exec_cmd()
-        
+    # 附加列表变动事件 
     def on_choice(self, event):
         selected = self.m_choice_attached.GetString(self.m_choice_attached.GetSelection())
         Util.set_current(selected)
         print(f'You selected: {selected}')
-    
+    # flag变动事件
     def on_checkbox(self, event):
         Util.FLAGS["force_attach"] = self.m_checkBox_force.IsChecked()
         Util.FLAGS["auto_switch"] = self.m_checkBox_autoswitch.IsChecked()
         Util.FLAGS["show_all"] = self.m_checkBox_showall.IsChecked()
-        
+# 全局工具类   
 class Util():
     LOG_WINDOW = None
     CODE_WINDOW = None
@@ -380,16 +383,19 @@ class Util():
     CURRENT = ""
     LOCK = threading.Lock()
     THREADS = []
-    
+    # 日志窗口输出
     def log(source:str, message:str):
         if Util.LOG_WINDOW == None:
             return
+        # 结尾换行处理
         if not message.endswith("\n"):
             message = message + "\n"
+        # 附加进程返回消息判断是否为当前选择进程，如果不是不现实，如果是show_all为True全部显示
+        # TODO 为每个附加的进程设置单独的消息存储
         if source.find("|") != -1 and Util.CURRENT != source and Util.CURRENT != "" and Util.FLAGS["show_all"] != True:
             return
         wx.CallAfter(Util.LOG_WINDOW.AppendText, f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n[{source}]: {message}")
-    
+    # 附加进程创建新的client
     def new_frida(targets:list):
         with Util.LOCK:
             for target in targets:
@@ -397,14 +403,16 @@ class Util():
                 client = FridaClient(target)
                 thread = threading.Thread(target=client.attach).start()
                 Util.THREADS.append(thread)
-    
+    # 设置cutom_code内容
     def set_custom_code(code):
         Util.CODE_WINDOW.SetValue(code)
-
+    # 获取cutom_code内容
     def get_custom_code():
         return Util.CODE_WINDOW.GetValue()
-    
+    # 加载默认代码
     def load_default_code():
+        # 路径针对打包做处理
+        # TODO 自定义默认代码位置
         if hasattr(sys, '_MEIPASS'):
             base_path = sys._MEIPASS
         else:
@@ -415,20 +423,20 @@ class Util():
         if os.path.exists(file_path) and os.path.isfile(file_path):
             file_data = open(file_path,'r',encoding='utf-8').read()
             Util.DEFAULT_WINDOW.SetValue(file_data)
-    
+    # 获取默认代码内容
     def get_default_code() -> str:
         return Util.DEFAULT_WINDOW.GetValue()
-
+    # 增加client id，如果auto_switch为True，自动切换为最新的附加客户端
     def add_client(id):
         Util.CLIENTS[id] = ""
         if Util.CURRENT == "" or Util.FLAGS["auto_switch"]:
             Util.CURRENT = id
         Util.refresh_choices()
-    
+    # 客户端清除
     def exit_client(id):
         Util.CLIENTS.pop(id)
         Util.refresh_choices()
-    
+    # 命令执行
     def exec_cmd(cmd=None):
         id = Util.CURRENT
         if not cmd:
@@ -443,15 +451,15 @@ class Util():
                 Util.log("exec cmd",f"{id} || {cmd}")
         else:
             Util.log("exec cmd","No Client")
-            
+    # 根据客户端id获取当前执行命令
     def get_cmd(id=None):
         cmd = Util.CLIENTS[id]
         Util.CLIENTS[id] = ""
         return cmd
-    
+    # 设置当前客户端
     def set_current(id):
         Util.CURRENT = id
-    
+    # 附加客户端列表刷新
     def refresh_choices():
         client_ids = list(Util.CLIENTS.keys())
         if Util.CURRENT != "" and Util.CURRENT not in client_ids:
@@ -466,19 +474,19 @@ class Util():
             print(index)
             if index != wx.NOT_FOUND:
                 wx.CallAfter(Util.ATTACHED_CHOICES.SetSelection,index)
-            
+# Frida相关操作类
 class FridaClient:
-    
+    # 初始化
     def __init__(self,target):
         self.target = target
         self.uuid = self.target + " | " + str(hashlib.md5(str(time.time()).encode('utf-8')).hexdigest()[:8])
-    
+    # 客户端消息
     def log(self, message):
         Util.log(self.uuid, message)
-    
+    # 系统消息
     def sys_log(self, message):
         Util.log("system", message)
-        
+    # frida消息回调
     def on_message(self,message,data):
         out_data = ""
         try:
@@ -494,9 +502,10 @@ class FridaClient:
             out_data = message
         out_data = str(out_data)
         self.log(out_data)
-    
+    # 进程附加
     def attach(self):
         target = self.target
+        # 对pid进行兼容
         try:
             target = int(self.target)
         except:
@@ -510,10 +519,12 @@ class FridaClient:
             if error.startswith('ambiguous name; it matches:'):
                 pattern = re.compile(r'\b\d+\b')
                 choices = pattern.findall(error)
+                # 应用多进程同时附加处理
                 self.sys_log(f"{self.uuid} || Find {len(choices)} process: {str(choices)}")
                 Util.new_frida(choices)
                 return
             if error.startswith("unable to find process"):
+                # 当force_attach为True时，循环等待进程启动
                 if Util.FLAGS["force_attach"]:
                     time.sleep(0.2)
                     Util.new_frida([target])
@@ -542,7 +553,7 @@ class FridaClient:
         self.log(f"client done.")
         Util.exit_client(self.uuid)
 
-
+# 启动方法
 def main():
     try:
         app = wx.App(False)
